@@ -280,7 +280,15 @@ spec:
 
                 found_groups.forEach(data => {
 
+                    {{ if eq .Values.google_ws.name_source "name" }}
                     var group_name = data.name;
+                    {{ else if eq .Values.google_ws.name_source "email" }}
+                    var group_name = data.email;
+                    {{ else if eq .Values.google_ws.name_source "email_user" }}
+                    var group_name = data.email.split("@")[0];
+                    {{ else }}
+                    {{ fail "Unrecognized value for .Values.google_ws.name_source" }}
+                    {{ end }}
 
                     // Skip groups that have already been seen
                     if (!groups.has(group_name)) {

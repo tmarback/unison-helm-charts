@@ -8,3 +8,9 @@ google_ws:
   # Note that enabling this setting will cause more calls to the Directory API per login
   # request (one per discovered group).
   include_transitive_groups: false
+  # Which piece of data from each discovered Google Group to use as the name of the generated
+  # OIDC group. The supported values are:
+  # name - (default) The group name
+  # email - The group email address
+  # email_user - The username portion of the group email address (the part before the @)
+  name_source: "name"
