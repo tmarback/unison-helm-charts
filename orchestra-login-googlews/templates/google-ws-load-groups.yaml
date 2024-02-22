@@ -103,31 +103,55 @@ spec:
                 return;
             }
 
-            
-            
             var accessToken = JSON.parse(jsonResp)["access_token"];
-            
 
-            var listMembersUrl = "https://admin.googleapis.com/admin/directory/v1/groups?userKey=" + mail;
+            var groups = new Set();
+            var pending = [mail]
 
-            httpGet = new HttpGet(listMembersUrl);
-            httpGet.addHeader(new BasicHeader("Authorization","Bearer " + accessToken));
+            while (pending.length > 0) {
 
-            resp = con.getHttp().execute(httpGet);
+                var next = pending.shift();
 
-            jsonResp = EntityUtils.toString(resp.getEntity());
-            
-            
-            if (resp.getStatusLine().getStatusCode() != 200) {
-                System.out.println("Unable to retrieve groups: " + resp.getStatusLine().getStatusCode() + " / " + jsonResp);
-                as.setExecuted(true);
-                as.setSuccess(false);
-                holder.getConfig().getAuthManager().nextAuth(request, response,session,false);
-                return;
+                var listMembersUrl = "https://admin.googleapis.com/admin/directory/v1/groups?userKey=" + next;
+
+                var httpGet = new HttpGet(listMembersUrl);
+                httpGet.addHeader(new BasicHeader("Authorization","Bearer " + accessToken));
+
+                resp = con.getHttp().execute(httpGet);
+
+                jsonResp = EntityUtils.toString(resp.getEntity());
+                
+                if (resp.getStatusLine().getStatusCode() != 200) {
+                    System.out.println("Unable to retrieve groups: " + resp.getStatusLine().getStatusCode() + " / " + jsonResp);
+                    as.setExecuted(true);
+                    as.setSuccess(false);
+                    holder.getConfig().getAuthManager().nextAuth(request, response,session,false);
+                    return;
+                }
+                
+                var groupData = JSON.parse(jsonResp);
+
+                if (groupData.groups) { // May be missing if no parent groups
+                    groupData.groups.forEach(data => {
+
+                        var group_name = data.name;
+
+                        // Skip groups that have already been seen
+                        if (!groups.has(group_name)) {
+                            groups.add(group_name);
+                            pending.push(data.email)
+                        }
+
+                    })
+                }
+
+                {{ if not .Values.google_ws.include_transitive_groups }}
+                // If transitive groups are not enabled, skip after fetching
+                // direct groups (first iteration)
+                break;
+                {{ end }}
+
             }
-            
-            
-            var groupData = JSON.parse(jsonResp);
 
             // remove the old groups, then add the ones from the lookup to AzureAD
             var memberof = ac.getAuthInfo().getAttribs().get("memberOf");
@@ -137,9 +161,7 @@ spec:
             }
             memberof.getValues().clear();
 
-            for (var i = 0;i<groupData.groups.length;i++) {
-              memberof.getValues().add(groupData.groups[i].name);
-            }
+            groups.forEach(group => memberof.getValues().add(group));
 
           } finally {
             if (con != null) {
