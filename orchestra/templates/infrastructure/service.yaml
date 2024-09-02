@@ -8,21 +8,23 @@ metadata:
     app.kubernetes.io/instance: openunison-{{ .Release.Name }}
     app.kubernetes.io/component: service
     app.kubernetes.io/part-of: network
-  annotations:
+  annotations: 
     argocd.argoproj.io/sync-wave: "20"
-  name: openunison-{{ .Release.Name }}
-  namespace: {{ .Release.Namespace }}
-  {{ if eq .Values.network.ingress_type "traefik" }}
-  annotations:
-    {{ if .Values.network.traefik.secure }} 
+    {{- if eq .Values.network.ingress_type "traefik" }}
+    {{- if .Values.network.traefik.secure }} 
     traefik.ingress.kubernetes.io/service.serversscheme: https
-    {{ end }}
+    {{- end }}
     traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
     traefik.ingress.kubernetes.io/service.sticky.cookie.name: openunison-sticky
     traefik.ingress.kubernetes.io/service.sticky.cookie.secure: "true"
     traefik.ingress.kubernetes.io/service.sticky.cookie.samesite: "none"
     traefik.ingress.kubernetes.io/service.sticky.cookie.httponly: "true"
-  {{ end }}
+    {{- end }}
+    {{- with .Values.network.service_annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+  name: openunison-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   ports:
   {{ if or ( eq .Values.network.ingress_type "istio" ) ( eq .Values.network.ingress_type "traefik" ) }}
