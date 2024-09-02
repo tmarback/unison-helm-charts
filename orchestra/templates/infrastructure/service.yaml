@@ -13,19 +13,22 @@ metadata:
     {{ if eq .Values.network.ingress_type "kong" }}
     konghq.com/protocol: "https"
     {{ end  }}
-    {{ if eq .Values.network.ingress_type "traefik" }}
-    {{ if .Values.network.traefik.secure }} 
+    {{- if eq .Values.network.ingress_type "traefik" }}
+    {{- if .Values.network.traefik.secure }} 
     traefik.ingress.kubernetes.io/service.serversscheme: https
-    {{ end }}
+    {{- end }}
     traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
     traefik.ingress.kubernetes.io/service.sticky.cookie.name: openunison-sticky
     traefik.ingress.kubernetes.io/service.sticky.cookie.secure: "true"
     traefik.ingress.kubernetes.io/service.sticky.cookie.samesite: "none"
     traefik.ingress.kubernetes.io/service.sticky.cookie.httponly: "true"
-    {{ end }}
+    {{- end }}
     {{ if .Capabilities.APIVersions.Has "project.openshift.io/v1/Project" }}
     service.beta.openshift.io/serving-cert-secret-name: unison-tls
     {{ end }}
+    {{- with .Values.network.service_annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
   name: openunison-{{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
 spec:
