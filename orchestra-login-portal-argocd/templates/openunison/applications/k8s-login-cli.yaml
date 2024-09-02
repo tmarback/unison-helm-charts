@@ -1,0 +1,114 @@
+---
+apiVersion: openunison.tremolo.io/v1
+kind: Application
+metadata:
+  name: k8s-login-cli
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: openunison
+    app.kubernetes.io/instance: openunison-{{ .Release.Name }}
+    app.kubernetes.io/component: openunison-applications
+    app.kubernetes.io/part-of: openunison
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  azTimeoutMillis: 3000
+  isApp: false
+  urls:
+  - hosts:
+    - "#[OU_HOST]"
+    - "127.0.0.1"
+    filterChain: []
+    uri: "/auth/idp/k8s-login-cli"
+    azRules:
+    {{ if .Values.openunison.enable_provisioning }}
+    {{ if .Values.openunison.naas.groups.external.enabled }}
+    - constraint: (groups=k8s-cluster-k8s-administrators{{ .Values.openunison.naas.groups.external.suffix }})
+      scope: filter
+    {{ end }}
+    {{ if .Values.openunison.naas.groups.internal.enabled }}
+    - constraint: (groups=k8s-cluster-k8s-administrators{{ .Values.openunison.naas.groups.internal.suffix }})
+      scope: filter
+    {{ end }}
+    {{ range $role := .Values.openunison.naas.groups.default }}
+    - constraint: (groups=k8s-namespace-{{ $role.name }}-k8s-*)
+      scope: filter
+    {{ end }}
+    {{ range $role := .Values.openunison.naas.groups.roles }}
+    - constraint: (groups=k8s-namespace-{{ $role.name }}-k8s-*)
+      scope: filter
+    {{ end }}
+    {{ else }}
+    {{ $length := len .Values.openunison.az_groups }}
+    {{ if eq $length 0 }}
+    - scope: dn
+      constraint: o=Tremolo
+    {{ else }}
+    {{ range $az_group := .Values.openunison.az_groups }}
+    - scope: filter
+      constraint: (groups={{ $az_group }})
+    {{ end }}
+    {{ end }}
+    {{ end }}
+    results:
+      azFail: default-login-failure
+      auFail: default-login-failure
+    idp:
+      className: com.tremolosecurity.idp.providers.OpenIDConnectIdP
+      params:
+        jwtSigningKey: "unison-saml2-rp-sig"
+        sessionStoreClassName: "com.tremolosecurity.idp.providers.oidc.none.NoneBackend"
+        sessionIdIdpName: k8sidp
+        sessionIdTrustName: kubernetes
+      mappings:
+        strict: true
+        map:
+        - sourceType: user
+          targetAttributeName: sub
+          targetAttributeSource: sub
+        - sourceType: composite
+          targetAttributeName: name
+          targetAttributeSource: '${givenName} ${sn}'
+        - sourceType: composite
+          targetAttributeName: display_name
+          targetAttributeSource: '${givenName} ${sn}'
+        - sourceType: user
+          targetAttributeName: family_name
+          targetAttributeSource: sn
+        - sourceType: user
+          targetAttributeName: given_name
+          targetAttributeSource: givenName
+        - sourceType: user
+          targetAttributeName: preferred_username
+          targetAttributeSource: uid
+        - sourceType: user
+          targetAttributeName: email
+          targetAttributeSource: mail
+        - sourceType: user
+          targetAttributeName: email_verified
+          targetAttributeSource: emailVerified
+        - sourceType: user
+          targetAttributeName: groups
+          targetAttributeSource: groups
+      trusts:
+      - name: "http://127.0.0.1:8400"
+        params:
+          clientID: "cli-local"
+          clientSecret: ""
+          publicEndpoint: "true"
+          redirectURI: "http://127.0.0.1:8400/redirect"
+          codeLastMileKeyName: "lastmile-oidc"
+          authChainName: "login-service"
+          codeTokenSkewMilis: "60000"
+          accessTokenTimeToLive: "60000"
+          accessTokenSkewMillis: "120000"
+  cookieConfig:
+    sessionCookieName: tremolosession
+    domain: "#[OU_HOST]"
+    secure: true
+    httpOnly: true
+    logoutURI: "/logout"
+    keyAlias: session-unison
+    timeout: {{ .Values.network.session_inactivity_timeout_seconds }}
+    scope: -1
+    cookiesEnabled: true

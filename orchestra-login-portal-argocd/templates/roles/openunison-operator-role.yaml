@@ -1,0 +1,53 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openunison-operator-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: openunison
+    app.kubernetes.io/instance: openunison-{{ .Release.Name }}
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: openunison
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+- apiGroups:
+  - openunison.tremolo.io
+  - ""
+  - apps
+  - rbac.authorization.k8s.io
+  - extensions
+  - apps.openshift.io
+  - build.openshift.io
+  - image.openshift.io
+  - route.openshift.io
+  - user.openshift.io
+  - networking.k8s.io
+  - batch
+  - networking.k8s.io
+  resources:
+  - routes/custom-host
+  - imagestreamimports
+  - users
+  - groups
+  - routes
+  - images
+  - imagestreams
+  - builds
+  - buildconfigs
+  - deploymentconfigs
+  - openunisons
+  - openunisons/status
+  - pods
+  - deployments
+  - secrets
+  - configmaps
+  - services
+  - serviceaccounts
+  - roles
+  - rolebindings
+  - ingresses
+  - cronjobs
+  verbs:
+  - '*'

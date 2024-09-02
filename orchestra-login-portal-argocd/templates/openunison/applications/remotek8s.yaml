@@ -1,0 +1,51 @@
+{{ if .Values.openunison.enable_provisioning }}
+---
+apiVersion: openunison.tremolo.io/v1
+kind: Application
+metadata:
+  name: remotek8s
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: openunison
+    app.kubernetes.io/instance: openunison-{{ .Release.Name }}
+    app.kubernetes.io/component: openunison-applications
+    app.kubernetes.io/part-of: openunison
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  azTimeoutMillis: 3000
+  isApp: false
+  urls:
+  - hosts:
+    - "#[OU_HOST]"
+    filterChain: []
+    uri: "/auth/idp/remotek8s"
+    azRules:
+    - scope: dn
+      constraint: ou=doesnotexist
+    results:
+      azFail: default-login-failure
+      auFail: default-login-failure
+    idp:
+      className: com.tremolosecurity.idp.providers.OpenIDConnectIdP
+      params:
+        jwtSigningKey: "unison-saml2-rp-sig"
+        sessionStoreClassName: "com.tremolosecurity.idp.providers.oidc.none.NoneBackend"
+      mappings:
+        strict: true
+        map:
+        - targetAttributeName: sub
+          targetAttributeSource: sub
+          sourceType: user
+      trusts: []
+  cookieConfig:
+    sessionCookieName: tremolosession
+    domain: "#[OU_HOST]"
+    secure: true
+    httpOnly: true
+    logoutURI: "/logout"
+    keyAlias: session-unison
+    timeout: {{ .Values.network.session_inactivity_timeout_seconds }}
+    scope: -1
+    cookiesEnabled: true
+{{ end }}

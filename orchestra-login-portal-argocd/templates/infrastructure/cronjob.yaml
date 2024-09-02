@@ -1,0 +1,156 @@
+{{ if not .Values.operator.legacy }}
+{{ if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
+apiVersion: batch/v1
+{{ else }}
+apiVersion: batch/v1beta1
+{{ end }}
+kind: CronJob
+metadata:
+  labels:
+    app: openunison-{{ .Release.Name }}
+    app.kubernetes.io/name: openunison
+    app.kubernetes.io/instance: openunison-{{ .Release.Name }}
+    app.kubernetes.io/component: cert-management
+    app.kubernetes.io/part-of: openunison
+  name: check-certs-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  concurrencyPolicy: Allow
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            app.kubernetes.io/name: openunison
+            app.kubernetes.io/instance: openunison-{{ .Release.Name }}
+            app.kubernetes.io/component: cert-management
+            app.kubernetes.io/part-of: openunison
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          containers:
+          - command:
+            - java
+            - -jar
+            - /usr/local/ouoperator/ouoperator.jar
+            - check-certs
+            - https://kubernetes.default.svc
+            - {{ .Release.Namespace }}
+            - /var/run/secrets/kubernetes.io/serviceaccount/token
+            - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            - "2,3,4,5,6"
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - "ALL"
+              {{ if .Capabilities.APIVersions.Has "project.openshift.io/v1/Project" }}
+              runAsNonRoot: true
+              {{ else }}
+              seccompProfile:
+                type: RuntimeDefault
+              runAsNonRoot: true
+              runAsUser: 431
+              runAsGroup: 433
+              {{ end }}
+            env:
+            - name: CA_CERTS_PATH
+              value: /usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts
+            - name: JAVA_OPTS
+              value: -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Dsun.net.inetaddr.ttl=0
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            image: "{{ .Values.cert_update_image }}"
+            imagePullPolicy: {{ .Values.openunison.imagePullPolicy }}
+            name: check-certs-{{ .Release.Name }}
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            {{ if .Values.services.resources }}
+            resources:
+              {{ if .Values.services.resources.requests }}
+              requests: 
+                {{ if .Values.services.resources.requests.memory }}
+                memory: {{ .Values.services.resources.requests.memory | quote }}
+                {{ end }}
+                
+                {{ if .Values.services.resources.requests.cpu }}
+                cpu: {{ .Values.services.resources.requests.cpu | quote }}
+                {{ end }}
+              
+              {{ end }}
+
+              {{ if .Values.services.resources.limits }}
+              limits: 
+                {{ if .Values.services.resources.limits.memory }}
+                memory: {{ .Values.services.resources.limits.memory | quote }}
+                {{ end }}
+                
+                {{ if .Values.services.resources.limits.cpu }}
+                cpu: {{ .Values.services.resources.limits.cpu | quote }}
+                {{ end }}
+              
+              {{ end }}
+            {{ end }}
+          dnsPolicy: ClusterFirst
+          restartPolicy: Never
+          schedulerName: default-scheduler
+          securityContext: {}
+          serviceAccount: openunison-operator
+          serviceAccountName: openunison-operator
+          terminationGracePeriodSeconds: 30
+          tolerations:
+          {{- range .Values.services.tolerations }}
+          - {{- if .key }}
+            key: {{ .key }}
+            {{- end }}
+            {{- if .effect }}
+            effect: {{ .effect }}
+            {{- end }}
+            {{- if .operator }}
+            operator: {{ .operator }}
+            {{- end }}
+            {{- if .value }}
+            value: {{ .value }}
+            {{- end }}
+          {{- end }}
+          {{ $length := len .Values.services.node_selectors }}
+          {{ if eq $length 0  }}
+          nodeSelector: {}
+          {{ else }}
+          nodeSelector: {{ range $key,$value := .Values.services.node_selectors }}
+            {{ $key }}: {{ $value | quote }}
+          {{ end }}
+          {{ end }}
+          {{ if .Values.services.pullSecret }}
+          imagePullSecrets:
+          - name: {{  .Values.services.pullSecret | quote }}
+          {{ end }}
+          {{ if .Capabilities.APIVersions.Has "project.openshift.io/v1/Project" }}
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+            runAsNonRoot: true
+          {{ else }}
+          securityContext:
+            fsGroup: 10001
+            supplementalGroups: [10001]
+            seccompProfile:
+              type: RuntimeDefault
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          {{ end }}
+  schedule: "{{ .Values.cert_update_schedule | default "0 2 * * *" }}"
+  successfulJobsHistoryLimit: 3
+  suspend: false
+{{ end }}
