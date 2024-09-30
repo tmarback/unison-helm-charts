@@ -16,6 +16,7 @@ data:
       claims:
         sub: sub
         email: email
+        email_verified: email_verified
         given_name: given_name
         family_name: family_name
         display_name: name
