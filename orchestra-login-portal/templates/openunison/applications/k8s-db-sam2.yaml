@@ -70,7 +70,7 @@ spec:
           targetAttributeSource: sub
           sourceType: user
         - targetAttributeName: name
-          targetAttributeSource: ${giveName} ${sn}
+          targetAttributeSource: ${givenName} ${sn}
           sourceType: composite
         - targetAttributeName: preferred_username
           targetAttributeSource: uid
