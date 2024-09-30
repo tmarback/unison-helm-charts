@@ -83,6 +83,7 @@ spec:
       map: 
       - "uid|composite|{{ print "${" .Values.oidc.claims.sub "}" }}"
       - "mail|composite|{{ print "${" .Values.oidc.claims.email "}" }}"
+      - "emailVerified|composite|{{ print "${" .Values.oidc.claims.email_verified "}" }}"
       - "givenName|composite|{{ print "${"  .Values.oidc.claims.given_name "}" }}"
       - "sn|composite|{{ print "${"  .Values.oidc.claims.family_name "}" }}"
       - "displayName|composite|{{ print "${"  .Values.oidc.claims.display_name "}" }}"
