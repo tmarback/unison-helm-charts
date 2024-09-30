@@ -79,21 +79,33 @@ spec:
       mappings:
         strict: true
         map:
-        - targetAttributeName: sub
+        - sourceType: user
+          targetAttributeName: sub
           targetAttributeSource: sub
-          sourceType: user
-        - targetAttributeName: name
-          targetAttributeSource: ${givenName} ${sn}
-          sourceType: composite
-        - targetAttributeName: preferred_username
+        - sourceType: composite
+          targetAttributeName: name
+          targetAttributeSource: '${givenName} ${sn}'
+        - sourceType: composite
+          targetAttributeName: display_name
+          targetAttributeSource: '${givenName} ${sn}'
+        - sourceType: user
+          targetAttributeName: family_name
+          targetAttributeSource: sn
+        - sourceType: user
+          targetAttributeName: given_name
+          targetAttributeSource: givenName
+        - sourceType: user
+          targetAttributeName: preferred_username
           targetAttributeSource: uid
-          sourceType: user
-        - targetAttributeName: email
+        - sourceType: user
+          targetAttributeName: email
           targetAttributeSource: mail
-          sourceType: user
-        - targetAttributeName: groups
+        - sourceType: user
+          targetAttributeName: email_verified
+          targetAttributeSource: emailVerified
+        - sourceType: user
+          targetAttributeName: groups
           targetAttributeSource: groups
-          sourceType: user
       trusts:
       - name: "#[K8S_URL]"
         params:
